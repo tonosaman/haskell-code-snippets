@@ -1,13 +1,13 @@
 Name:                   haskell-code-snippets
 Version:                0.0.0
-Author:                 tono
-Maintainer:             tono
-License:                BSD2
+Author:                 tonosaman
+Maintainer:             tonosaman
+License:                BSD3
 License-File:           LICENSE
 Synopsis:               Code snippets for Haskell
 Description:            Using Cabal as test framework for doctest and hspec
 Category:               Codec
-Cabal-Version:          >= 1.10
+Cabal-Version:          >= 1.2
 Build-Type:             Simple
 
 Library
@@ -40,4 +40,4 @@ Test-Suite spec
 
 Source-Repository head
   Type:                 git
-  Location:             https://github.com/tono-nakae/haskell-code-snippets
+  Location:             https://github.com/tonosaman/haskell-code-snippets

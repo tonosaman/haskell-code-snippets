@@ -7,7 +7,7 @@ License-File:           LICENSE
 Synopsis:               Code snippets for Haskell
 Description:            Using Cabal as test framework for doctest and hspec
 Category:               Codec
-Cabal-Version:          >= 1.2
+Cabal-Version:          >= 1.10
 Build-Type:             Simple
 
 Library

@@ -12,6 +12,7 @@ Build-Type:             Simple
 
 Library
   Default-Language:     Haskell2010
+  Hs-Source-Dirs:       src
   GHC-Options:          -Wall
   Exposed-Modules:      Codec.Base64
                       , Compiler.Utils.Bag

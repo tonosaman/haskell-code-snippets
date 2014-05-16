@@ -1,8 +1,7 @@
-module Base64Spec where
+module Codec.Base64Spec where
 
-import Codec.Base64
+import SpecHelper
 import Data.Bits
-import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck hiding ((.&.))
 
@@ -50,3 +49,6 @@ spec = do
 
         prop "reverses encoded string" $ \xs ->
             decode (encode xs) == xs
+
+main :: IO ()
+main = hspec spec

@@ -7,6 +7,10 @@ spec :: Spec
 spec = do
     describe "eval0" $ evaluation_context_with eval0
     describe "eval1" $ evaluation_context_with (\ env exp -> runEval1 $ eval1 env exp)
+    describe "eval2" $ evaluation_context_with $
+      \ env exp -> case runEval2 (eval2 env exp) of Right iv -> iv
+    describe "eval3" $ evaluation_context_with $
+      \ env exp -> case runEval3 (eval3 exp) env of Right iv -> iv
     where
       evaluation_context_with :: (Env -> Exp -> Value) -> Spec
       evaluation_context_with eval = do

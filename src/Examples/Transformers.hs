@@ -5,6 +5,8 @@ module Examples.Transformers
        , Env
        , eval0
        , eval1, runEval1
+       , eval2, runEval2
+       , eval3, runEval3
        ) where
 
 import Control.Monad.Identity
@@ -74,3 +76,53 @@ eval1 env arg = case arg of
     eval1 env e1 >>= \ fv ->
     eval1 env e2 >>= \ iv ->
     case fv of (FunVal env' n body) -> eval1 (Map.insert n iv env') body
+
+{-- add error handring by ErrorT --}
+type Eval2 = ErrorT String Identity
+runEval2 :: Eval2 a -> Either String a
+runEval2 = runIdentity . runErrorT
+                            
+eval2 :: Env -> Exp -> Eval2 Value
+eval2 env exp = case exp of
+  Lit i -> return $ IntVal i
+  Var n -> maybe (throwError $ "Var " ++ n ++ " not found") return (Map.lookup n env)
+  -- Var n -> maybe (fail $ "ERROR: Var " ++ n ++ " not found") return (Map.lookup n env) 
+  Plus e1 e2 ->
+    eval2 env e1 >>= \ iv1 -> 
+    eval2 env e2 >>= \ iv2 ->
+    case (iv1, iv2) of
+      (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
+      otherwise -> throwError $ "Invalid Plus operand(s)."
+  Abs n e -> return $ FunVal env n e
+  App e1 e2 ->
+    eval2 env e1 >>= \ fv ->
+    eval2 env e2 >>= \ iv ->
+    case fv of
+      (FunVal env' n body) -> eval2 (Map.insert n iv env') body
+      otherwise -> throwError "Invalid App operand(s)."
+
+{-- add environment by ReaderT --}
+type Eval3 = ReaderT Env (ErrorT String Identity)
+runEval3 :: Eval3 a -> Env -> Either String a
+runEval3 env = runIdentity . runErrorT . runReaderT env
+
+eval3 :: Exp -> Eval3 Value
+eval3 exp = case exp of
+  Lit i -> return $ IntVal i
+  Var n ->
+    ask >>= \ env ->
+    maybe (throwError $ "Var " ++ n ++ " not found") return (Map.lookup n env)
+  Plus e1 e2 ->
+    ask >>= \ env ->
+    eval3 e1 >>= \ iv1 -> 
+    eval3 e2 >>= \ iv2 ->
+    case (iv1, iv2) of
+      (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
+      otherwise -> throwError $ "Invalid Plus operand(s)."
+  Abs n e -> ask >>= \ env -> return $ FunVal env n e
+  App e1 e2 ->
+    eval3 e1 >>= \ fv ->
+    eval3 e2 >>= \ iv ->
+    case fv of
+      (FunVal env' n body) -> local (Map.insert n iv) $ eval3 body
+      otherwise -> throwError "Invalid App operand(s)."

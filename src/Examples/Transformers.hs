@@ -7,6 +7,7 @@ module Examples.Transformers
        , eval1, runEval1
        , eval2, runEval2
        , eval3, runEval3
+       , eval4, runEval4
        ) where
 
 import Control.Monad.Identity
@@ -125,4 +126,36 @@ eval3 exp = case exp of
     eval3 e2 >>= \ iv ->
     case fv of
       (FunVal env' n body) -> local (Map.insert n iv) $ eval3 body
+      otherwise -> throwError "Invalid App operand(s)."
+
+{-- add status by StateT --}
+type Eval4 a = ReaderT Env (ErrorT String (StateT Integer Identity)) a
+runEval4 :: Eval4 a -> Env -> Integer -> (Either String a, Integer)
+runEval4 ev env st = runIdentity (runStateT (runErrorT (runReaderT ev env)) st)
+
+tick :: (Num a, MonadState a m) => m ()
+tick = get >>= \ st -> put (st + 1)
+
+eval4 :: Exp -> Eval4 Value
+eval4 exp = case exp of
+  Lit i -> tick >>= const (return $ IntVal i)
+  Var n ->
+    tick >>= 
+    const ask >>= \ env ->
+    maybe (throwError $ "Var " ++ n ++ " not found") return (Map.lookup n env)
+  Plus e1 e2 ->
+    tick >>= 
+    const ask >>= \ env ->
+    eval4 e1 >>= \ iv1 -> 
+    eval4 e2 >>= \ iv2 ->
+    case (iv1, iv2) of
+      (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
+      otherwise -> throwError $ "Invalid Plus operand(s)."
+  Abs n e -> tick >>= const ask >>= \ env -> return $ FunVal env n e
+  App e1 e2 ->
+    tick >>= 
+    const (eval4 e1) >>= \ fv ->
+    eval4 e2 >>= \ iv ->
+    case fv of
+      (FunVal env' n body) -> local (Map.insert n iv) $ eval4 body
       otherwise -> throwError "Invalid App operand(s)."

@@ -124,5 +124,10 @@ eval3 exp = case exp of
     eval3 e1 >>= \ fv ->
     eval3 e2 >>= \ iv ->
     case fv of
-      (FunVal env' n body) -> local (Map.insert n iv) $ eval3 body
+      (FunVal env' n body) -> local (const $ Map.insert n iv env') $ eval3 body
       otherwise -> throwError "Invalid App operand(s)."
+
+{-- add state by StateT --}
+type Eval4 = ReaderT Env (ErrorT String (StateT Integer Identity))
+
+

@@ -11,6 +11,8 @@ spec = do
       \ env exp -> case runEval2 (eval2 env exp) of Right iv -> iv
     describe "eval3" $ evaluation_context_with $
       \ env exp -> case runEval3 (eval3 exp) env of Right iv -> iv
+    describe "eval4" $ evaluation_context_with $
+      \ env exp -> case runEval4 (eval4 exp) env 0 of (Right iv, st) -> iv
     where
       evaluation_context_with :: (Env -> Exp -> Value) -> Spec
       evaluation_context_with eval = do

@@ -1,15 +1,15 @@
 module Hassium.Args
     ( Option(..)
-    , simplifyOptions
-    , simplifyOptions'
+    , simplify
     ) where
 
-import Data.List(intercalate)
+import Data.List(intercalate, nub, concat, unfoldr)
+import Data.Maybe(listToMaybe, maybeToList)
 
 data Option 
    -- Main options
    = BuildOne | BuildAll | DumpInformationForThisModule | DumpInformationForAllModules
-   | DisableLogging | EnableLogging | Alert String | Overloading | NoOverloading | LvmPath String | Verbose | NoWarnings | MoreOptions
+   | Logging Bool | Alert String | Overloading Bool | LvmPath String | Verbose | NoWarnings | MoreOptions
    | Information String
    -- More options
    | StopAfterParser | StopAfterStaticAnalysis | StopAfterTypeInferencing | StopAfterDesugar
@@ -24,72 +24,23 @@ data Option
    | SelectConstraintNumber Int
  deriving (Eq, Show)
 
--- Keep only the last of the overloading flags and the last of the logging enable flags.
--- The alert flag overrides logging turned off.
--- This function also collects all -P flags together and merges them into one. The order of the
--- directories is the order in which they were specified.
-simplifyOptions :: [Option] -> [Option]
-simplifyOptions ops = 
-    let
-      revdefops = reverse ops
-      modops    = case alertMessageFromOptions revdefops of
-                    (Just _)  ->  EnableLogging : revdefops -- Explicitly enable logging as well, just to be safe
-                    Nothing   ->  revdefops
-    in
-      collectPaths (keepFirst [Overloading, NoOverloading] (keepFirst [EnableLogging, DisableLogging] modops)) [] []
-          where
-            -- Assumes the options are in reverse order, and also reverses them.
-            -- Collects several LvmPath options into one
-            collectPaths [] paths newops       = LvmPath (intercalate ":" paths) : newops              
-            collectPaths (LvmPath path : rest) paths newops
-                                               = collectPaths rest (path : paths) newops
-            collectPaths (opt : rest) paths newops
-                                               = collectPaths rest paths (opt : newops)                                   
-            keepFirst fromList []              = []
-            keepFirst fromList (opt : rest)    = if (opt `elem` fromList) then
-                                                   opt : optionFilter fromList rest
-                                                 else
-                                                   opt : keepFirst fromList rest
-            optionFilter fromList []           = []
-            optionFilter fromList (opt : rest) = if (opt `elem` fromList) then
-                                                   optionFilter fromList rest
-                                                 else
-                                                   opt : optionFilter fromList rest
+simplify :: [Option] -> [Option]
+simplify ops =
+  let
+    aboutPath = LvmPath . intercalate ":" . nub . concat $ [wordsWhen (==':') x | LvmPath x <- ops]
+    aboutOverloading = maybeToList . listToMaybe $ [x | x@(Overloading _) <- reverse ops]
+    aboutLogging =
+      if not $ null [ True | Alert _ <- ops ] then [Logging True]
+      else maybeToList . listToMaybe $ [x | x@(Logging _) <- reverse ops]
+    aboutOtherOpts = nub . concat $ unfoldr f ops where
+      f [] = Nothing
+      f (LvmPath _ : ls) = Just([], ls)
+      f (Logging _ : ls) = Just([], ls)
+      f (Overloading _ : ls) = Just([], ls)
+      f (op : ls) = Just([op], ls)
+  in aboutPath : aboutOverloading ++ aboutLogging ++ aboutOtherOpts
 
--- Keep only the last of the overloading flags and the last of the logging enable flags.
--- The alert flag overrides logging turned off.
--- This function also collects all -P flags together and merges them into one. The order of the
--- directories is the order in which they were specified.
-simplifyOptions' :: [Option] -> [Option]
-simplifyOptions' ops = 
-    let
-      revdefops = reverse ops
-      modops    = case alertMessageFromOptions revdefops of
-                    (Just _)  ->  EnableLogging : revdefops -- Explicitly enable logging as well, just to be safe
-                    Nothing   ->  revdefops
-    in
-      collectPaths (keepFirst [Overloading, NoOverloading] (keepFirst [EnableLogging, DisableLogging] modops)) [] []
-          where
-            -- Assumes the options are in reverse order, and also reverses them.
-            -- Collects several LvmPath options into one
-            collectPaths [] paths newops       = LvmPath (intercalate ":" paths) : newops              
-            collectPaths (LvmPath path : rest) paths newops
-                                               = collectPaths rest (path : paths) newops
-            collectPaths (opt : rest) paths newops
-                                               = collectPaths rest paths (opt : newops)                                   
-            keepFirst fromList []              = []
-            keepFirst fromList (opt : rest)    = if (opt `elem` fromList) then
-                                                   opt : optionFilter fromList rest
-                                                 else
-                                                   opt : keepFirst fromList rest
-            optionFilter fromList []           = []
-            optionFilter fromList (opt : rest) = if (opt `elem` fromList) then
-                                                   optionFilter fromList rest
-                                                 else
-                                                   opt : optionFilter fromList rest
-
--- Extracts the alert message. Returns Nothing if such is not present.
-alertMessageFromOptions :: [Option] -> Maybe String
-alertMessageFromOptions [] = Nothing
-alertMessageFromOptions (Alert message: _) = Just message
-alertMessageFromOptions (_ : rest) = alertMessageFromOptions rest
+wordsWhen :: (Char -> Bool) -> String -> [String]
+wordsWhen p s = case dropWhile p s of
+  "" -> []
+  s' -> w : wordsWhen p s'' where (w, s'') = break p s'

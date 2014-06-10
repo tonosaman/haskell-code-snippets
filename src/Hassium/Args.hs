@@ -8,7 +8,6 @@ import Data.Maybe(listToMaybe, maybeToList)
 import System.Console.GetOpt(getOpt, OptDescr(Option), ArgDescr(NoArg, ReqArg), ArgOrder(Permute))
 import Data.Char(isDigit)
 
-
 data Flag 
    -- Main options
    = BuildOne | BuildAll | DumpInformationForThisModule | DumpInformationForAllModules
@@ -16,8 +15,7 @@ data Flag
    | Information String
    -- More options
    | StopAfterParser | StopAfterStaticAnalysis | StopAfterTypeInferencing | StopAfterDesugar
-   | DumpTokens | DumpUHA | DumpCore | DumpCoreToFile 
-   | DebugLogger | Host String | Port Int 
+   | DumpTokens | DumpUHA | DumpCore | DumpCoreToFile | DebugLogger
    | DumpTypeDebug | AlgorithmW | AlgorithmM | DisableDirectives | NoRepairHeuristics
  deriving (Eq, Show)
 
@@ -64,10 +62,10 @@ simplify :: [Flag] -> [Flag]
 simplify flags =
   let
     aboutPath = LvmPath . intercalate ":" . nub . concat $ [wordsWhen (==':') x | LvmPath x <- flags]
-    aboutOverloading = maybeToList . listToMaybe $ [x | x@(Overloading _) <- reverse flags]
+    aboutOverloading = maybeToList $ listToMaybe [x | x@(Overloading _) <- reverse flags]
     aboutLogging =
       if hasAlert flags then [Logging True]
-      else maybeToList . listToMaybe $ [x | x@(Logging _) <- reverse flags]
+      else maybeToList $ listToMaybe [x | x@(Logging _) <- reverse flags]
     aboutOther = nub . concat $ unfoldr f flags where
       f [] = Nothing
       f (LvmPath _ : ls) = Just([], ls)

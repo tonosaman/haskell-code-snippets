@@ -16,6 +16,8 @@ Library
   GHC-Options:          -Wall
   Exposed-Modules:      Codec.Base64
                       , Compiler.Utils.Bag
+                      , Examples.Transformers
+                      , Hassium.Args
   Build-Depends:        base >= 4 && < 5
                       , array
 

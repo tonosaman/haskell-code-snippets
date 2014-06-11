@@ -15,11 +15,12 @@ Library
   Hs-Source-Dirs:       src
   GHC-Options:          -Wall
   Exposed-Modules:      Codec.Base64
-                      , Compiler.Utils.Bag
                       , Examples.Transformers
                       , Hassium.Args
   Build-Depends:        base >= 4 && < 5
                       , array
+                      , containers
+                      , mtl >= 2.2.1
 
 Test-Suite spec
   Type:                 exitcode-stdio-1.0
@@ -31,6 +32,7 @@ Test-Suite spec
                       , hspec >= 1.7
                       , QuickCheck
                       , haskell-code-snippets
+                      , containers
 
 Source-Repository head
   Type:                 git

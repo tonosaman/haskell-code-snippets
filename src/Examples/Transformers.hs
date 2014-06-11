@@ -11,10 +11,10 @@ module Examples.Transformers
        ) where
 
 import Control.Monad.Identity
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Writer
+import Control.Monad.Writer()
 import Data.Maybe
 import qualified Data.Map as Map
 
@@ -33,7 +33,7 @@ data Value
 type Env = Map.Map Name Value
 
 eval0 :: Env -> Exp -> Value
-eval0 env (Lit i) = IntVal i
+eval0 _ (Lit i) = IntVal i
 eval0 env (Var n) = fromJust $ Map.lookup n env
 eval0 env (Plus e1 e2) = 
   let IntVal i1 = eval0 env e1
@@ -48,6 +48,7 @@ eval0 env (App e1 e2) =
 {-- convert to Identity Monad -}
 
 type Eval1 = Identity
+runEval1 :: Eval1 a -> a
 runEval1 = runIdentity
 
 eval1 :: Env -> Exp -> Eval1 Value
@@ -64,7 +65,9 @@ eval1 env arg = case arg of
   Plus e1 e2 ->
     eval1 env e1 >>= \ iv1 -> 
     eval1 env e2 >>= \ iv2 ->
-    case (iv1, iv2) of (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
+    case (iv1, iv2) of
+      (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
+      _ -> error $ "Invalid Plus operand(s)."
   Abs n e -> return $ FunVal env n e
   {--
   App e1 e2 -> do
@@ -76,15 +79,17 @@ eval1 env arg = case arg of
   App e1 e2 ->
     eval1 env e1 >>= \ fv ->
     eval1 env e2 >>= \ iv ->
-    case fv of (FunVal env' n body) -> eval1 (Map.insert n iv env') body
+    case fv of
+      (FunVal env' n body) -> eval1 (Map.insert n iv env') body
+      _ -> error "Invalid App operand(s)."
 
-{-- add error handring by ErrorT --}
-type Eval2 = ErrorT String Identity
+{-- add error handring by ExceptT --}
+type Eval2 = ExceptT String Identity
 runEval2 :: Eval2 a -> Either String a
-runEval2 = runIdentity . runErrorT
-                            
+runEval2 = runIdentity . runExceptT
+
 eval2 :: Env -> Exp -> Eval2 Value
-eval2 env exp = case exp of
+eval2 env ex = case ex of
   Lit i -> return $ IntVal i
   Var n -> maybe (throwError $ "Var " ++ n ++ " not found") return (Map.lookup n env)
   -- Var n -> maybe (fail $ "ERROR: Var " ++ n ++ " not found") return (Map.lookup n env) 
@@ -93,69 +98,69 @@ eval2 env exp = case exp of
     eval2 env e2 >>= \ iv2 ->
     case (iv1, iv2) of
       (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
-      otherwise -> throwError $ "Invalid Plus operand(s)."
+      _ -> throwError $ "Invalid Plus operand(s)."
   Abs n e -> return $ FunVal env n e
   App e1 e2 ->
     eval2 env e1 >>= \ fv ->
     eval2 env e2 >>= \ iv ->
     case fv of
       (FunVal env' n body) -> eval2 (Map.insert n iv env') body
-      otherwise -> throwError "Invalid App operand(s)."
+      _ -> throwError "Invalid App operand(s)."
 
 {-- add environment by ReaderT --}
-type Eval3 = ReaderT Env (ErrorT String Identity)
+type Eval3 = ReaderT Env (ExceptT String Identity)
 runEval3 :: Eval3 a -> Env -> Either String a
-runEval3 env = runIdentity . runErrorT . runReaderT env
+runEval3 env = runIdentity . runExceptT . runReaderT env
 
 eval3 :: Exp -> Eval3 Value
-eval3 exp = case exp of
+eval3 ex = case ex of
   Lit i -> return $ IntVal i
   Var n ->
     ask >>= \ env ->
     maybe (throwError $ "Var " ++ n ++ " not found") return (Map.lookup n env)
   Plus e1 e2 ->
-    ask >>= \ env ->
+    ask >>
     eval3 e1 >>= \ iv1 -> 
     eval3 e2 >>= \ iv2 ->
     case (iv1, iv2) of
       (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
-      otherwise -> throwError $ "Invalid Plus operand(s)."
+      _ -> throwError $ "Invalid Plus operand(s)."
   Abs n e -> ask >>= \ env -> return $ FunVal env n e
   App e1 e2 ->
     eval3 e1 >>= \ fv ->
     eval3 e2 >>= \ iv ->
     case fv of
       (FunVal env' n body) -> local (const $ Map.insert n iv env') $ eval3 body
-      otherwise -> throwError "Invalid App operand(s)."
+      _ -> throwError "Invalid App operand(s)."
 
 {-- add status by StateT --}
-type Eval4 a = ReaderT Env (ErrorT String (StateT Integer Identity)) a
+type Eval4 a = ReaderT Env (ExceptT String (StateT Integer Identity)) a
 runEval4 :: Eval4 a -> Env -> Integer -> (Either String a, Integer)
-runEval4 ev env st = runIdentity (runStateT (runErrorT (runReaderT ev env)) st)
+runEval4 ev env st = runIdentity (runStateT (runExceptT (runReaderT ev env)) st)
 
 tick :: (Num a, MonadState a m) => m ()
 tick = get >>= \ st -> put (st + 1)
 
 eval4 :: Exp -> Eval4 Value
-eval4 exp = case exp of
+eval4 ex = case ex of
   Lit i -> tick >>= const (return $ IntVal i)
   Var n ->
-    tick >>= 
-    const ask >>= \ env ->
+    tick >>
+    ask >>= \ env ->
     maybe (throwError $ "Var " ++ n ++ " not found") return (Map.lookup n env)
   Plus e1 e2 ->
-    tick >>= 
-    const ask >>= \ env ->
+    tick >>
+    ask >>
     eval4 e1 >>= \ iv1 -> 
     eval4 e2 >>= \ iv2 ->
     case (iv1, iv2) of
       (IntVal i1, IntVal i2) -> return $ IntVal(i1 + i2)
-      otherwise -> throwError $ "Invalid Plus operand(s)."
+      _ -> throwError $ "Invalid Plus operand(s)."
   Abs n e -> tick >>= const ask >>= \ env -> return $ FunVal env n e
   App e1 e2 ->
-    tick >>= 
-    const (eval4 e1) >>= \ fv ->
+    tick >>
+    eval4 e1 >>= \ fv ->
     eval4 e2 >>= \ iv ->
     case fv of
-      (FunVal env' n body) -> local (Map.insert n iv) $ eval4 body
-      otherwise -> throwError "Invalid App operand(s)."
+      (FunVal _ n body) -> local (Map.insert n iv) $ eval4 body
+      _ -> throwError "Invalid App operand(s)."

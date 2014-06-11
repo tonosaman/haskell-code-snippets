@@ -3,10 +3,9 @@ module Hassium.Args
     , simplify
     ) where
 
-import Data.List(intercalate, nub, concat, unfoldr)
+import Data.List(intercalate, nub, unfoldr)
 import Data.Maybe(listToMaybe, maybeToList)
-import System.Console.GetOpt(getOpt, OptDescr(Option), ArgDescr(NoArg, ReqArg), ArgOrder(Permute))
-import Data.Char(isDigit)
+import System.Console.GetOpt(OptDescr(Option), ArgDescr(NoArg, ReqArg))
 
 data Flag 
    -- Main options
@@ -80,10 +79,10 @@ wordsWhen p s = case dropWhile p s of
   s' -> w : wordsWhen p s'' where (w, s'') = break p s'
 
 lvmPath :: [Flag] -> Maybe String
-lvmPath options = listToMaybe [ s | LvmPath s <- options]
+lvmPath flags = listToMaybe [ s | LvmPath s <- flags]
 
 alertMessage :: [Flag] -> Maybe String
-alertMessage options = listToMaybe [ message | Alert message <- options]
+alertMessage flags = listToMaybe [ message | Alert message <- flags]
 
 hasAlert :: [Flag] -> Bool
-hasAlert options = not $ null [ True | Alert _ <- options ]
+hasAlert flags = not $ null [ True | Alert _ <- flags ]

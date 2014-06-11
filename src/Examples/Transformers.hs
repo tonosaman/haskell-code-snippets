@@ -11,7 +11,7 @@ module Examples.Transformers
        ) where
 
 import Control.Monad.Identity
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer()
@@ -83,10 +83,10 @@ eval1 env arg = case arg of
       (FunVal env' n body) -> eval1 (Map.insert n iv env') body
       _ -> error "Invalid App operand(s)."
 
-{-- add error handring by ErrorT --}
-type Eval2 = ErrorT String Identity
+{-- add error handring by ExceptT --}
+type Eval2 = ExceptT String Identity
 runEval2 :: Eval2 a -> Either String a
-runEval2 = runIdentity . runErrorT
+runEval2 = runIdentity . runExceptT
 
 eval2 :: Env -> Exp -> Eval2 Value
 eval2 env ex = case ex of
@@ -108,9 +108,9 @@ eval2 env ex = case ex of
       _ -> throwError "Invalid App operand(s)."
 
 {-- add environment by ReaderT --}
-type Eval3 = ReaderT Env (ErrorT String Identity)
+type Eval3 = ReaderT Env (ExceptT String Identity)
 runEval3 :: Eval3 a -> Env -> Either String a
-runEval3 env = runIdentity . runErrorT . runReaderT env
+runEval3 env = runIdentity . runExceptT . runReaderT env
 
 eval3 :: Exp -> Eval3 Value
 eval3 ex = case ex of
@@ -134,9 +134,9 @@ eval3 ex = case ex of
       _ -> throwError "Invalid App operand(s)."
 
 {-- add status by StateT --}
-type Eval4 a = ReaderT Env (ErrorT String (StateT Integer Identity)) a
+type Eval4 a = ReaderT Env (ExceptT String (StateT Integer Identity)) a
 runEval4 :: Eval4 a -> Env -> Integer -> (Either String a, Integer)
-runEval4 ev env st = runIdentity (runStateT (runErrorT (runReaderT ev env)) st)
+runEval4 ev env st = runIdentity (runStateT (runExceptT (runReaderT ev env)) st)
 
 tick :: (Num a, MonadState a m) => m ()
 tick = get >>= \ st -> put (st + 1)

@@ -5,7 +5,8 @@ module Hassium.Args
 
 import Data.List(intercalate, nub, unfoldr)
 import Data.Maybe(listToMaybe, maybeToList)
-import System.Console.GetOpt(OptDescr(Option), ArgDescr(NoArg, ReqArg))
+import Control.Monad.Error(noMsg, strMsg, Error, throwError)
+import System.Console.GetOpt(getOpt, OptDescr(Option), ArgDescr(NoArg, ReqArg), ArgOrder(Permute))
 
 data Flag 
    -- Main options
@@ -86,3 +87,43 @@ alertMessage flags = listToMaybe [ message | Alert message <- flags]
 
 hasAlert :: [Flag] -> Bool
 hasAlert flags = not $ null [ True | Alert _ <- flags ]
+
+type CommandOptMonad = Either CommandOptError
+data CommandOptError
+ = InvalidFlag [String]
+ | TooManyParams [String]
+ | NoParams
+ | CommandOptError String
+
+instance Show CommandOptError where
+  show args = case args of
+    InvalidFlag errors ->
+      show $ CommandOptError $ unlines
+      $ "list of parameters is erroneous." : "Problem(s):" : map ("  " ++) errors
+    TooManyParams params ->
+      show $ CommandOptError $ unlines
+      $ "only one non-option parameter expected, but found instead:" : map ("  " ++) params
+    NoParams -> show $ CommandOptError "the name of the module to be compiled seems to be missing."
+    CommandOptError s -> "Error in invocation: " ++ s
+
+instance Error CommandOptError where
+  noMsg = CommandOptError "unexpected error."
+  strMsg s = CommandOptError s
+
+parseOpt :: [String] -> CommandOptMonad ([Flag], Maybe String)
+parseOpt argstr
+  | not $ null errors = throwError $ InvalidFlag errors
+  | length params > 1 = throwError $ TooManyParams params
+  | null params = throwError NoParams
+  | otherwise = return (simplify $ defaults ++ flags, listToMaybe params)
+  where
+    (flags, params, errors) = getOpt Permute (options) argstr
+    defaults = [Logging False, Overloading True]
+
+{--
+main :: IO ()
+main = do
+    args <- getArgs
+    when (Verbose `elem` simpleOptions) $
+      putStrLn ("Options after simplification: " ++ (show simpleOptions)++"\n")
+--}

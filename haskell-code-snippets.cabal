@@ -17,6 +17,7 @@ Library
   Exposed-Modules:      Codec.Base64
                       , Examples.Transformers
                       , Hassium.Args
+                      , Hassium.Main
   Build-Depends:        base >= 4 && < 5
                       , array
                       , containers

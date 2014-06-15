@@ -1,11 +1,12 @@
 module Hassium.Args
     ( Flag(..)
     , simplify
+    , parseOpt
     ) where
 
 import Data.List(intercalate, nub, unfoldr)
 import Data.Maybe(listToMaybe, maybeToList)
-import Control.Monad.Error(noMsg, strMsg, Error, throwError)
+import Control.Monad.Except(Except, throwError)
 import System.Console.GetOpt(getOpt, OptDescr(Option), ArgDescr(NoArg, ReqArg), ArgOrder(Permute))
 
 data Flag 
@@ -106,10 +107,6 @@ instance Show CommandOptError where
     NoParams -> show $ CommandOptError "the name of the module to be compiled seems to be missing."
     CommandOptError s -> "Error in invocation: " ++ s
 
-instance Error CommandOptError where
-  noMsg = CommandOptError "unexpected error."
-  strMsg s = CommandOptError s
-
 parseOpt :: [String] -> CommandOptMonad ([Flag], Maybe String)
 parseOpt argstr
   | not $ null errors = throwError $ InvalidFlag errors
@@ -119,11 +116,3 @@ parseOpt argstr
   where
     (flags, params, errors) = getOpt Permute (options) argstr
     defaults = [Logging False, Overloading True]
-
-{--
-main :: IO ()
-main = do
-    args <- getArgs
-    when (Verbose `elem` simpleOptions) $
-      putStrLn ("Options after simplification: " ++ (show simpleOptions)++"\n")
---}
